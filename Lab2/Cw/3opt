@@ -1,0 +1,96 @@
+import numpy as np
+import re
+
+CITIES = [
+    'Barwinek', 'Bezledy', 'BialaPodlaska', 'Bialystok', 'BielskoBiala', 'Bydgoszcz', 'Chalupki', 'Chelm', 'Chyzne',
+    'Ciechanow', 'Cieszyn', 'Czestochowa', 'Elblag', 'Gdansk', 'GorzowWielkop', 'Gubin', 'Hrebenne', 'Jakuszyce',
+    'JeleniaGora', 'Kalisz', 'Katowice', 'Kielce', 'Kolbaskowo', 'Konin', 'Koszalin', 'Kostrzyn', 'Krakow', 'Krosno',
+    'Kudowa', 'KuznicaBialos', 'Legnica', 'Leszno', 'Lublin', 'Lomza', 'Lodz', 'Medyka', 'NowySacz', 'Ogrodniki',
+    'Olsztyn', 'Olszyna', 'Opole', 'Ostroleka', 'Pila', 'PiotrkowTryb', 'Plock', 'Poznan', 'Przemysl', 'Radom',
+    'Rzeszow', 'Siedlce', 'Sieradz', 'Skierniewice', 'Slupsk', 'Suwalki', 'Szczecin', 'Swiecko', 'Swinoujscie',
+    'Tarnobrzeg', 'Tarnow', 'Terespol', 'Torun', 'Walbrzych', 'Warszawa', 'Wloclawek', 'Wroclaw', 'Zakopane',
+    'Zamosc', 'Zgorzelec', 'ZielonaGora'
+]
+
+def load_distances(file_path, city_count):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    nums = [int(n) for n in re.findall(r'\d+', content)]
+    return np.array(nums[:city_count**2]).reshape(city_count, city_count)
+
+class AdvancedTSPOptimizer:
+    def __init__(self, matrix):
+        self.matrix = matrix
+        self.n = len(matrix)
+
+    def get_path_dist(self, route):
+        d = 0
+        for i in range(self.n):
+            d += self.matrix[route[i]][route[(i + 1) % self.n]]
+        return d
+
+    def nearest_neighbor(self, start_idx):
+        unvisited = list(range(self.n))
+        curr = start_idx
+        route = [curr]
+        unvisited.remove(curr)
+        while unvisited:
+            next_c = min(unvisited, key=lambda x: self.matrix[curr][x])
+            route.append(next_c)
+            unvisited.remove(next_c)
+            curr = next_c
+        return route
+
+    def optimize_3opt(self, route):
+        best_route = route[:]
+        best_dist = self.get_path_dist(best_route)
+        improved = True
+
+        while improved:
+            improved = False
+            for i in range(self.n - 2):
+                for j in range(i + 1, self.n - 1):
+                    for k in range(j + 1, self.n):
+                        # Sprawdzanie różnych wariantów połączeń 3-opt
+                        # (Warianty zamiany 3 krawędzi)
+                        new_routes = [
+                            best_route[:i+1] + best_route[j:i:-1] + best_route[k:j:-1] + best_route[k+1:],
+                            best_route[:i+1] + best_route[j+1:k+1] + best_route[i+1:j+1] + best_route[k+1:],
+                            best_route[:i+1] + best_route[k:j:-1] + best_route[i+1:j+1] + best_route[k+1:],
+                            best_route[:i+1] + best_route[j+1:k+1] + best_route[j:i:-1] + best_route[k+1:]
+                        ]
+
+                        for r in new_routes:
+                            d = self.get_path_dist(r)
+                            if d < best_dist:
+                                best_dist = d
+                                best_route = r
+                                improved = True
+                                break
+                        if improved: break
+                    if improved: break
+                if improved: break
+        return best_route, best_dist
+
+if __name__ == "__main__":
+    matrix = load_distances('distances-pl.txt', len(CITIES))
+    optimizer = AdvancedTSPOptimizer(matrix)
+
+    global_best_dist = float('inf')
+    global_best_route = []
+
+    print("Uruchamianie głębokiej optymalizacji (3-opt + Multi-start)...")
+
+    for i in range(len(CITIES)):
+        initial = optimizer.nearest_neighbor(i)
+        refined_route, refined_dist = optimizer.optimize_3opt(initial)
+
+        if refined_dist < global_best_dist:
+            global_best_dist = refined_dist
+            global_best_route = refined_route
+            print(f"Nowy rekord: {global_best_dist} km (Start: {CITIES[i]})")
+
+    print("\nOSTATECZNY WYNIK:")
+    print(" -> ".join([CITIES[idx] for idx in global_best_route]))
+    print(f" -> {CITIES[global_best_route[0]]} (Powrót)")
+    print(f"Łączny dystans: {global_best_dist} km")

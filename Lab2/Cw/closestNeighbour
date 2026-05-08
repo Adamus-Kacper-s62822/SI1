@@ -1,0 +1,56 @@
+import numpy as np
+import re
+
+CITIES = [
+    'Barwinek', 'Bezledy', 'BialaPodlaska', 'Bialystok', 'BielskoBiala', 'Bydgoszcz', 'Chalupki', 'Chelm', 'Chyzne',
+    'Ciechanow', 'Cieszyn', 'Czestochowa', 'Elblag', 'Gdansk', 'GorzowWielkop', 'Gubin', 'Hrebenne', 'Jakuszyce',
+    'JeleniaGora', 'Kalisz', 'Katowice', 'Kielce', 'Kolbaskowo', 'Konin', 'Koszalin', 'Kostrzyn', 'Krakow', 'Krosno',
+    'Kudowa', 'KuznicaBialos', 'Legnica', 'Leszno', 'Lublin', 'Lomza', 'Lodz', 'Medyka', 'NowySacz', 'Ogrodniki',
+    'Olsztyn', 'Olszyna', 'Opole', 'Ostroleka', 'Pila', 'PiotrkowTryb', 'Plock', 'Poznan', 'Przemysl', 'Radom',
+    'Rzeszow', 'Siedlce', 'Sieradz', 'Skierniewice', 'Slupsk', 'Suwalki', 'Szczecin', 'Swiecko', 'Swinoujscie',
+    'Tarnobrzeg', 'Tarnow', 'Terespol', 'Torun', 'Walbrzych', 'Warszawa', 'Wloclawek', 'Wroclaw', 'Zakopane',
+    'Zamosc', 'Zgorzelec', 'ZielonaGora'
+]
+
+def load_distances(file_path, city_count):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = f.read()
+        numbers = [int(n) for n in re.findall(r'\d+', data)]
+        expected = city_count * city_count
+        return np.array(numbers[:expected]).reshape(city_count, city_count)
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
+def solve_nearest_neighbor(matrix, start_index=0):
+    size = len(matrix)
+    unvisited = list(range(size))
+
+    current_city = start_index
+    route = [current_city]
+    unvisited.remove(current_city)
+    total_dist = 0
+
+    while unvisited:
+        next_city = min(unvisited, key=lambda city: matrix[current_city][city])
+
+        total_dist += matrix[current_city][next_city]
+        current_city = next_city
+
+        route.append(current_city)
+        unvisited.remove(current_city)
+
+    total_dist += matrix[current_city][start_index]
+    return route, total_dist
+
+if __name__ == "__main__":
+    dist_matrix = load_distances('distances-pl.txt', len(CITIES))
+
+    if dist_matrix is not None:
+        route, distance = solve_nearest_neighbor(dist_matrix, start_index=0)
+
+        print("TRASA (NAJBLIŻSZY SĄSIAD):")
+        print(" -> ".join([CITIES[i] for i in route]))
+        print(f" -> {CITIES[route[0]]} (Powrót)")
+        print(f"Całkowita odległość: {distance} km")

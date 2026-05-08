@@ -1,0 +1,76 @@
+import numpy as np
+import re
+
+CITIES = [
+    'Barwinek', 'Bezledy', 'BialaPodlaska', 'Bialystok', 'BielskoBiala', 'Bydgoszcz', 'Chalupki', 'Chelm', 'Chyzne',
+    'Ciechanow', 'Cieszyn', 'Czestochowa', 'Elblag', 'Gdansk', 'GorzowWielkop', 'Gubin', 'Hrebenne', 'Jakuszyce',
+    'JeleniaGora', 'Kalisz', 'Katowice', 'Kielce', 'Kolbaskowo', 'Konin', 'Koszalin', 'Kostrzyn', 'Krakow', 'Krosno',
+    'Kudowa', 'KuznicaBialos', 'Legnica', 'Leszno', 'Lublin', 'Lomza', 'Lodz', 'Medyka', 'NowySacz', 'Ogrodniki',
+    'Olsztyn', 'Olszyna', 'Opole', 'Ostroleka', 'Pila', 'PiotrkowTryb', 'Plock', 'Poznan', 'Przemysl', 'Radom',
+    'Rzeszow', 'Siedlce', 'Sieradz', 'Skierniewice', 'Slupsk', 'Suwalki', 'Szczecin', 'Swiecko', 'Swinoujscie',
+    'Tarnobrzeg', 'Tarnow', 'Terespol', 'Torun', 'Walbrzych', 'Warszawa', 'Wloclawek', 'Wroclaw', 'Zakopane',
+    'Zamosc', 'Zgorzelec', 'ZielonaGora'
+]
+
+def load_distances(file_path, city_count):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    nums = [int(n) for n in re.findall(r'\d+', content)]
+    return np.array(nums[:city_count**2]).reshape(city_count, city_count)
+
+class HGREXSolver:
+    def __init__(self, matrix):
+        self.matrix = matrix
+        self.size = len(matrix)
+
+    def calculate_total_distance(self, route):
+        dist = 0
+        for i in range(self.size):
+            dist += self.matrix[route[i]][route[(i + 1) % self.size]]
+        return dist
+
+    def get_initial_route(self, start_node):
+        nodes = list(range(self.size))
+        current = start_node
+        route = [current]
+        nodes.remove(current)
+
+        while nodes:
+            next_node = min(nodes, key=lambda x: self.matrix[current][x])
+            route.append(next_node)
+            nodes.remove(next_node)
+            current = next_node
+        return route
+
+    def optimize(self, route):
+        best_route = route
+        best_dist = self.calculate_total_distance(route)
+        can_improve = True
+
+        while can_improve:
+            can_improve = False
+            for i in range(1, self.size - 1):
+                for j in range(i + 1, self.size):
+                    new_route = best_route[:i] + best_route[i:j][::-1] + best_route[j:]
+                    new_dist = self.calculate_total_distance(new_route)
+
+                    if new_dist < best_dist:
+                        best_dist = new_dist
+                        best_route = new_route
+                        can_improve = True
+            if not can_improve:
+                break
+        return best_route, best_dist
+
+if __name__ == "__main__":
+    matrix = load_distances('distances-pl.txt', len(CITIES))
+    solver = HGREXSolver(matrix)
+
+    base_route = solver.get_initial_route(0)
+    final_route, final_dist = solver.optimize(base_route)
+
+    print("NAJLEPSZA TRASA (HGREX):")
+    formatted_path = [CITIES[i] for i in final_route]
+    print(" -> ".join(formatted_path))
+    print(f" -> {CITIES[final_route[0]]} (Powrót)")
+    print(f"\nŁączny dystans: {final_dist} km")

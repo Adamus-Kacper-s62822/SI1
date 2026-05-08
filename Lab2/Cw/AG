@@ -1,0 +1,110 @@
+import random
+import numpy as np
+import re
+
+CITIES = [
+    'Barwinek', 'Bezledy', 'BialaPodlaska', 'Bialystok', 'BielskoBiala', 'Bydgoszcz', 'Chalupki', 'Chelm', 'Chyzne',
+    'Ciechanow', 'Cieszyn', 'Czestochowa', 'Elblag', 'Gdansk', 'GorzowWielkop', 'Gubin', 'Hrebenne', 'Jakuszyce',
+    'JeleniaGora', 'Kalisz', 'Katowice', 'Kielce', 'Kolbaskowo', 'Konin', 'Koszalin', 'Kostrzyn', 'Krakow', 'Krosno',
+    'Kudowa', 'KuznicaBialos', 'Legnica', 'Leszno', 'Lublin', 'Lomza', 'Lodz', 'Medyka', 'NowySacz', 'Ogrodniki',
+    'Olsztyn', 'Olszyna', 'Opole', 'Ostroleka', 'Pila', 'PiotrkowTryb', 'Plock', 'Poznan', 'Przemysl', 'Radom',
+    'Rzeszow', 'Siedlce', 'Sieradz', 'Skierniewice', 'Slupsk', 'Suwalki', 'Szczecin', 'Swiecko', 'Swinoujscie',
+    'Tarnobrzeg', 'Tarnow', 'Terespol', 'Torun', 'Walbrzych', 'Warszawa', 'Wloclawek', 'Wroclaw', 'Zakopane',
+    'Zamosc', 'Zgorzelec', 'ZielonaGora'
+]
+
+def load_distances(file_path, city_count):
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = f.read()
+
+        numbers = [int(n) for n in re.findall(r'\d+', data)]
+        expected = city_count * city_count
+
+        if len(numbers) < expected:
+            raise ValueError(f"Too few numbers in file. Got {len(numbers)}, need {expected}")
+
+        matrix = np.array(numbers[:expected]).reshape(city_count, city_count)
+        return matrix
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return None
+
+class TSPEvolver:
+    def __init__(self, matrix, pop_size=200, mutation_rate=0.05):
+        self.matrix = matrix
+        self.size = len(matrix)
+        self.pop_size = pop_size
+        self.mutation_rate = mutation_rate
+
+    def get_path_cost(self, route):
+        total = 0
+        for i in range(self.size):
+            total += self.matrix[route[i]][route[(i + 1) % self.size]]
+        return total
+
+    def random_route(self):
+        route = list(range(self.size))
+        random.shuffle(route)
+        return route
+
+    def ordered_crossover(self, p1, p2):
+        a, b = sorted(random.sample(range(self.size), 2))
+        child = [None] * self.size
+        child[a:b] = p1[a:b]
+
+        remaining = [item for item in p2 if item not in child]
+        idx = 0
+        for i in range(self.size):
+            if child[i] is None:
+                child[i] = remaining[idx]
+                idx += 1
+        return child
+
+    def swap_mutation(self, route):
+        if random.random() < self.mutation_rate:
+            i, j = random.sample(range(self.size), 2)
+            route[i], route[j] = route[j], route[i]
+
+    def run_generation(self, population):
+        population.sort(key=self.get_path_cost)
+        next_gen = population[:2]
+
+        while len(next_gen) < self.pop_size:
+            parent1 = min(random.sample(population, 3), key=self.get_path_cost)
+            parent2 = min(random.sample(population, 3), key=self.get_path_cost)
+
+            offspring = self.ordered_crossover(parent1, parent2)
+            self.swap_mutation(offspring)
+            next_gen.append(offspring)
+
+        return next_gen
+
+if __name__ == "__main__":
+    dist_matrix = load_distances('distances-pl.txt', len(CITIES))
+
+    if dist_matrix is not None:
+        solver = TSPEvolver(dist_matrix, pop_size=250, mutation_rate=0.06)
+        population = [solver.random_route() for _ in range(solver.pop_size)]
+
+        best_dist = float('inf')
+        best_route = []
+
+        print(f"Starting optimization for {len(CITIES)} cities...")
+
+        for gen in range(2001):
+            population = solver.run_generation(population)
+
+            top_route = population[0]
+            top_dist = solver.get_path_cost(top_route)
+
+            if top_dist < best_dist:
+                best_dist = top_dist
+                best_route = top_route
+
+            if gen % 200 == 0:
+                print(f"Gen {gen} | Best distance: {best_dist} km")
+
+        print("\nFinal Result:")
+        print(" -> ".join([CITIES[i] for i in best_route]))
+        print(f"Total Distance: {best_dist} km")
