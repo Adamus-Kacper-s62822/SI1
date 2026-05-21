@@ -10,7 +10,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
-# 1. Wczytanie nazw kolumn z pliku .names
 column_names = []
 
 with open("communities.names", "r", encoding="utf-8", errors="ignore") as f:
@@ -20,7 +19,6 @@ with open("communities.names", "r", encoding="utf-8", errors="ignore") as f:
         if match:
             column_names.append(match.group(1))
 
-# 2. Wczytanie danych
 data = pd.read_csv(
     "communities.data",
     header=None,
@@ -28,19 +26,16 @@ data = pd.read_csv(
     na_values="?"
 )
 
-# 3. Przygotowanie danych do modelu
 target_col = "ViolentCrimesPerPop"
 drop_cols = ["state", "county", "community", "communityname", "fold"]
 
 X = data.drop(columns=drop_cols + [target_col]).apply(pd.to_numeric, errors="coerce")
 y = data[target_col]
 
-# 4. Podział danych
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# 5. Model
 model = Pipeline([
     ("imputer", SimpleImputer(strategy="median")),
     ("scaler", StandardScaler()),
@@ -50,13 +45,11 @@ model = Pipeline([
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 
-# 6. Ocena modelu
 print("MAE:", mean_absolute_error(y_test, y_pred))
 print("MSE:", mean_squared_error(y_test, y_pred))
 print("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
 print("R2:", r2_score(y_test, y_pred))
 
-# 7. Dane do wykresu korelacji
 cols = [
     "racePctWhite",
     "racepctblack",
@@ -76,10 +69,8 @@ labels = {
 }
 corr.index = [labels.get(col, col) for col in corr.index]
 
-# kolory dla grup
 group_colors = ["lightblue", "lightcoral", "gold", "lightgreen"]
 
-# 8. Jeden obraz z trzema wykresami
 fig, axes = plt.subplots(1, 3, figsize=(20, 6))
 
 fig.suptitle(
@@ -87,7 +78,6 @@ fig.suptitle(
     fontsize=14
 )
 
-# Wykres 1: rzeczywiste vs przewidziane
 axes[0].scatter(y_test, y_pred, color="steelblue", alpha=0.7)
 axes[0].set_xlabel("Wartości rzeczywiste")
 axes[0].set_ylabel("Wartości przewidziane")
@@ -97,7 +87,6 @@ min_val = min(y_test.min(), y_pred.min())
 max_val = max(y_test.max(), y_pred.max())
 axes[0].plot([min_val, max_val], [min_val, max_val], color="red", linestyle="--")
 
-# Wykres 2: reszty
 residuals = y_test - y_pred
 axes[1].scatter(y_pred, residuals, color="darkorange", alpha=0.7)
 axes[1].axhline(y=0, color="red", linestyle="--")
@@ -105,7 +94,6 @@ axes[1].set_xlabel("Wartości przewidziane")
 axes[1].set_ylabel("Błąd")
 axes[1].set_title("Wykres reszt")
 
-# Wykres 3: korelacje etniczności
 axes[2].bar(corr.index, corr.values, color=group_colors)
 axes[2].set_title("Korelacja grup etnicznych")
 axes[2].set_ylabel("Korelacja")
